@@ -1,0 +1,6 @@
+@StudioSync_HostAddress = http://localhost:5101
+
+GET {{StudioSync_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

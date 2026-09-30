@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Solution Items/" />
+  <Folder Name="/Solution Items/docs/" />
+  <Folder Name="/Solution Items/docs/adr/">
+    <File Path="docs/adr/0001-software-intention.md" />
+    <File Path="docs/adr/0002-code-design-and-architecture.md" />
+    <File Path="docs/adr/0003-db-relational-modeling.md" />
+  </Folder>
+  <Project Path="StudioSync/StudioSync.csproj" />
+</Solution>
