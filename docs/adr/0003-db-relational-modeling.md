@@ -15,11 +15,10 @@ The platform must manage the capacity of each booking, including tracking availa
 Three modules will be created.
 1. **Customer**: Responsible for managing customer information, including creating, updating, and deleting customer records.
 2. **Studios**: Responsible for managing studios, including creating, updating, and deleting tenants.
-3. **Booking.ClassDetails**: Responsible for managing class details, including creating, updating, and deleting class information.
 
+3. **Booking.ClassDetails**: Responsible for managing class details, including creating, updating, and deleting class information.
 4. **Booking.ClassSchedules**: Responsible for managing classes, including creating, updating, and canceling sessions.
 5. **Booking.Bookings**: Source of truth for user bookings status.
-
 6. **Booking.OutboxMessages**: Responsible serving integration events without fail to external systems.
 
 Customers table will have the following columns:

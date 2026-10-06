@@ -10,7 +10,7 @@
 
 3. The modules will be independent and loosely coupled.
 4. The modules will communicate with each other through well-defined and versioned interfaces.
-5. Outbox pattern will be used to ensure reliable communication between modules.
+5. Outbox pattern will be used initially to ensure reliable communication between modules.
 6. The platform will guarantee race condition and deadlock prevention by using optimistic concurrency control and proper transaction management.
 
 7. All platform messages will follow versioning strategy that allows app backward compatibility using canary releases and feature flags.
