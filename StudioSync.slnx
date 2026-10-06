@@ -7,5 +7,6 @@
     <File Path="docs/adr/0003-db-relational-modeling.md" />
     <File Path="docs/adr/0004-scripts-for-base-case.md" />
   </Folder>
+  <Project Path="StudioSync.Bookings/StudioSync.Bookings.csproj" />
   <Project Path="StudioSync/StudioSync.csproj" />
 </Solution>

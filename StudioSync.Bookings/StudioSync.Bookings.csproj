@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	<TargetFramework>net10.0</TargetFramework>
+	<Nullable>enable</Nullable>
+	<ImplicitUsings>enable</ImplicitUsings>
+	<RootNamespace>StudioSync.Bookings</RootNamespace>
+	<AssemblyName>StudioSync.Bookings</AssemblyName>
+	<Description>Bookings module for the StudioSync modular monolith. Owns the Booking schema: class details, class schedules, bookings and transactional outbox.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+	<PackageReference Include="FluentMigrator" Version="7.1.0" />
+	<PackageReference Include="FluentMigrator.Runner" Version="7.1.0" />
+	<PackageReference Include="FluentMigrator.Runner.Postgres" Version="7.1.0" />
+	<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+	<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+	<PackageReference Include="Npgsql" Version="9.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+	<FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

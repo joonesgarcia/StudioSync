@@ -1,8 +1,16 @@
+using StudioSync.Bookings;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// RFC 7807 Problem Details error responses (ADR-0002, item 8).
+builder.Services.AddProblemDetails();
+
+// Modules of the modular monolith (ADR-0001).
+builder.Services.AddBookingsModule(builder.Configuration);
 
 var app = builder.Build();
 
@@ -13,6 +21,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.MapBookingsEndpoints();
 
 var summaries = new[]
 {
