@@ -42,7 +42,7 @@ internal sealed class BookingRepository(IDbConnectionFactory connectionFactory) 
     /// </summary>
     public async Task FulfillAsync(Guid bookingId, Guid classScheduleId, CancellationToken cancellationToken = default)
     {
-        const string sql = """
+        var sql = $$"""
             DO $$
             DECLARE
                 v_rows_affected INT;
@@ -53,12 +53,12 @@ internal sealed class BookingRepository(IDbConnectionFactory connectionFactory) 
                     "BookedSlots" = "BookedSlots" + 1,
                     "RowVersion" = "RowVersion" + 1
                 WHERE
-                    "Id" = :ClassScheduleId
+                    "Id" = '{{classScheduleId}}'::uuid
                     AND "BookedSlots" < "Capacity"
                     AND NOT EXISTS (
                         SELECT 1
                         FROM "Booking"."Bookings"
-                        WHERE "ClassScheduleId" = :ClassScheduleId
+                        WHERE "ClassScheduleId" = '{{classScheduleId}}'::uuid
                           AND "Status" = 'Waitlisted'
                     );
 
@@ -70,20 +70,25 @@ internal sealed class BookingRepository(IDbConnectionFactory connectionFactory) 
                         "Status" = 'Booked',
                         "WaitlistPosition" = NULL,
                         "UpdatedAt" = NOW()
-                    WHERE "Id" = :BookingId;
+                    WHERE "Id" = '{{bookingId}}'::uuid;
 
                     INSERT INTO "Booking"."OutboxMessages" ("Id", "EventType", "Payload", "OccurredAt")
-                    VALUES (gen_random_uuid(), 'BookingConfirmed', :ConfirmedPayload::jsonb, NOW());
+                    VALUES (
+                        gen_random_uuid(),
+                        'BookingConfirmed',
+                        json_build_object('BookingId', '{{bookingId}}'::uuid)::text::jsonb,
+                        NOW()
+                    );
                 ELSE
                     PERFORM 1
                     FROM "Booking"."ClassSchedules"
-                    WHERE "Id" = :ClassScheduleId
+                    WHERE "Id" = '{{classScheduleId}}'::uuid
                     FOR UPDATE;
 
                     SELECT COALESCE(MAX("WaitlistPosition"), 0) + 1
                     INTO v_next_waitlist_pos
                     FROM "Booking"."Bookings"
-                    WHERE "ClassScheduleId" = :ClassScheduleId
+                    WHERE "ClassScheduleId" = '{{classScheduleId}}'::uuid
                       AND "Status" = 'Waitlisted';
 
                     UPDATE "Booking"."Bookings"
@@ -91,24 +96,20 @@ internal sealed class BookingRepository(IDbConnectionFactory connectionFactory) 
                         "Status" = 'Waitlisted',
                         "WaitlistPosition" = v_next_waitlist_pos,
                         "UpdatedAt" = NOW()
-                    WHERE "Id" = :BookingId;
+                    WHERE "Id" = '{{bookingId}}'::uuid;
 
                     INSERT INTO "Booking"."OutboxMessages" ("Id", "EventType", "Payload", "OccurredAt")
-                    VALUES (gen_random_uuid(), 'BookingWaitlisted', :WaitlistedPayload::jsonb, NOW());
+                    VALUES (
+                        gen_random_uuid(),
+                        'BookingWaitlisted',
+                        json_build_object('BookingId', '{{bookingId}}'::uuid)::text::jsonb,
+                        NOW()
+                    );
                 END IF;
             END $$;
             """;
 
-        var confirmedPayload = $"{{\"BookingId\":\"{bookingId}\"}}";
-        var waitlistedPayload = confirmedPayload;
-
-        await ExecuteInTransactionAsync(command =>
-        {
-            AddParameter(command, "BookingId", bookingId);
-            AddParameter(command, "ClassScheduleId", classScheduleId);
-            AddParameter(command, "ConfirmedPayload", confirmedPayload);
-            AddParameter(command, "WaitlistedPayload", waitlistedPayload);
-        }, sql, cancellationToken);
+        await ExecuteInTransactionAsync(_ => { }, sql, cancellationToken);
     }
 
     /// <summary>
@@ -117,7 +118,7 @@ internal sealed class BookingRepository(IDbConnectionFactory connectionFactory) 
     /// </summary>
     public async Task CancelAsync(Guid bookingId, CancellationToken cancellationToken = default)
     {
-        const string sql = """
+        var sql = $$"""
             DO $$
             DECLARE
                 v_previous_status VARCHAR(30);
@@ -127,7 +128,7 @@ internal sealed class BookingRepository(IDbConnectionFactory connectionFactory) 
                 SELECT "Status", "ClassScheduleId"
                 INTO v_previous_status, v_class_schedule_id
                 FROM "Booking"."Bookings"
-                WHERE "Id" = :BookingId
+                WHERE "Id" = '{{bookingId}}'::uuid
                 FOR UPDATE;
 
                 IF v_previous_status IS NULL OR v_previous_status = 'Cancelled' THEN
@@ -136,7 +137,7 @@ internal sealed class BookingRepository(IDbConnectionFactory connectionFactory) 
 
                 UPDATE "Booking"."Bookings"
                 SET "Status" = 'Cancelled', "UpdatedAt" = NOW()
-                WHERE "Id" = :BookingId;
+                WHERE "Id" = '{{bookingId}}'::uuid;
 
                 IF v_previous_status = 'Booked' THEN
                     SELECT "Id"
@@ -172,7 +173,7 @@ internal sealed class BookingRepository(IDbConnectionFactory connectionFactory) 
             END $$;
             """;
 
-        await ExecuteInTransactionAsync(command => AddParameter(command, "BookingId", bookingId), sql, cancellationToken);
+        await ExecuteInTransactionAsync(_ => { }, sql, cancellationToken);
     }
 
     public Task<Domain.Booking?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
