@@ -13,11 +13,11 @@ internal sealed class BookingRepository(IDbConnectionFactory connectionFactory) 
     /// <summary>ADR-0004 script 2: register the request as PENDING and emit BookingRequested.</summary>
     public async Task CreatePendingAsync(Domain.Booking booking, string outboxPayload, CancellationToken cancellationToken = default)
     {
-        const string sql = """
+        var sql = $$"""
             INSERT INTO "Booking"."Bookings" (
                 "Id", "ClassScheduleId", "Status", "WaitlistPosition", "CustomerId", "CreatedAt"
             ) VALUES (
-                @BookingId, @ClassScheduleId, 'Pending', NULL, @CustomerId, NOW()
+                '{{booking.Id}}'::uuid, '{{booking.ClassScheduleId}}'::uuid, 'Pending', NULL, '{{booking.CustomerId}}'::uuid, NOW()
             );
 
             INSERT INTO "Booking"."OutboxMessages" (
@@ -28,12 +28,7 @@ internal sealed class BookingRepository(IDbConnectionFactory connectionFactory) 
             """;
 
         await ExecuteInTransactionAsync(command =>
-        {
-            AddParameter(command, "@BookingId", booking.Id);
-            AddParameter(command, "@ClassScheduleId", booking.ClassScheduleId);
-            AddParameter(command, "@CustomerId", booking.CustomerId);
-            AddParameter(command, "@Payload", outboxPayload);
-        }, sql, cancellationToken);
+            AddParameter(command, "@Payload", outboxPayload), sql, cancellationToken);
     }
 
     /// <summary>

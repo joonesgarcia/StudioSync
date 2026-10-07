@@ -1,5 +1,4 @@
 using System.Data;
-using System.Text.Json;
 using StudioSync.Bookings.Application;
 using StudioSync.Bookings.Domain;
 
@@ -16,51 +15,30 @@ internal sealed class ClassScheduleRepository(IDbConnectionFactory connectionFac
         string outboxPayload,
         CancellationToken cancellationToken = default)
     {
-        using var connection = connectionFactory.Create();
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
-
-        const string sql = """
+        var sql = $$"""
             INSERT INTO "Booking"."ClassDetails" (
                 "Id", "StudioId", "Title", "Description",
                 "RegistrationOpenTime", "RegistrationCloseTime", "StartTime", "EndTime"
             ) VALUES (
-                @ClassDetailId, @StudioId, @Title, @Description,
-                @RegistrationOpenTime, @RegistrationCloseTime, @StartTime, @EndTime
+                '{{detail.Id}}'::uuid, '{{detail.StudioId}}'::uuid, {{SqlString(detail.Title)}}, {{SqlString(detail.Description)}},
+                '{{Utc(detail.RegistrationOpenTime)}}'::timestamptz, '{{Utc(detail.RegistrationCloseTime)}}'::timestamptz,
+                '{{Utc(detail.StartTime)}}'::timestamptz, '{{Utc(detail.EndTime)}}'::timestamptz
             );
 
             INSERT INTO "Booking"."ClassSchedules" (
                 "Id", "ClassDetailId", "Capacity", "BookedSlots", "RowVersion"
             ) VALUES (
-                @ClassScheduleId, @ClassDetailId, @Capacity, 0, 1
+                '{{schedule.Id}}'::uuid, '{{detail.Id}}'::uuid, {{schedule.Capacity}}, 0, 1
             );
 
             INSERT INTO "Booking"."OutboxMessages" (
                 "Id", "EventType", "Payload", "OccurredAt"
             ) VALUES (
-                gen_random_uuid(), 'ClassCreated', @Payload::jsonb, NOW()
+                gen_random_uuid(), 'ClassCreated', {{SqlString(outboxPayload)}}::jsonb, NOW()
             );
             """;
 
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = sql;
-        AddParameter(command, "@ClassDetailId", detail.Id);
-        AddParameter(command, "@StudioId", detail.StudioId);
-        AddParameter(command, "@Title", detail.Title);
-        AddParameter(command, "@Description", detail.Description);
-        AddParameter(command, "@RegistrationOpenTime", detail.RegistrationOpenTime);
-        AddParameter(command, "@RegistrationCloseTime", detail.RegistrationCloseTime);
-        AddParameter(command, "@StartTime", scheduleStart(detail));
-        AddParameter(command, "@EndTime", detail.EndTime);
-        AddParameter(command, "@ClassScheduleId", schedule.Id);
-        AddParameter(command, "@Capacity", schedule.Capacity);
-        AddParameter(command, "@Payload", outboxPayload);
-
-        await ExecuteAsync(command, cancellationToken);
-        transaction.Commit();
-
-        static DateTime scheduleStart(ClassDetail d) => d.StartTime;
+        await ExecuteInTransactionAsync(_ => { }, sql, cancellationToken);
     }
 
     public Task<ClassSchedule?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -69,16 +47,28 @@ internal sealed class ClassScheduleRepository(IDbConnectionFactory connectionFac
         throw new NotImplementedException();
     }
 
-    private static void AddParameter(IDbCommand command, string name, object value)
-    {
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = name;
-        parameter.Value = value;
-        command.Parameters.Add(parameter);
-    }
+    /// <summary>Escapes a string value for safe inline embedding in SQL single quotes.</summary>
+    private static string SqlString(string value) => $"'{value.Replace("'", "''")}'";
 
-    private static async Task ExecuteAsync(IDbCommand command, CancellationToken cancellationToken)
+    /// <summary>Normalizes a DateTime to UTC and formats it as ISO 8601 for timestamptz.</summary>
+    private static string Utc(DateTime dt) => dt.Kind switch
     {
+        DateTimeKind.Utc => dt.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ"),
+        DateTimeKind.Local => dt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ"),
+        _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc).ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ")
+    };
+
+    private async Task ExecuteInTransactionAsync(Action<IDbCommand> configure, string sql, CancellationToken cancellationToken)
+    {
+        using var connection = connectionFactory.Create();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = sql;
+        configure(command);
+
         if (command is System.Data.Common.DbCommand dbCommand)
         {
             await dbCommand.ExecuteNonQueryAsync(cancellationToken);
@@ -87,5 +77,7 @@ internal sealed class ClassScheduleRepository(IDbConnectionFactory connectionFac
         {
             command.ExecuteNonQuery();
         }
+
+        transaction.Commit();
     }
 }

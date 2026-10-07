@@ -1,5 +1,3 @@
-using StudioSync.Bookings.Domain;
-
 namespace StudioSync.Bookings.Application;
 
 /// <summary>
