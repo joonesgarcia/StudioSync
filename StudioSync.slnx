@@ -1,5 +1,7 @@
 <Solution>
-  <Folder Name="/Solution Items/" />
+  <Folder Name="/Solution Items/">
+    <File Path="docker-compose.yaml" />
+  </Folder>
   <Folder Name="/Solution Items/docs/" />
   <Folder Name="/Solution Items/docs/adr/">
     <File Path="docs/adr/0001-software-intention.md" />
